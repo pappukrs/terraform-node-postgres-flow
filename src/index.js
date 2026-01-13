@@ -13,6 +13,10 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_super_secret_key";
 // Simple DB initialization
 const initDB = async () => {
     console.log(`Starting app in ${process.env.NODE_ENV} mode`);
+    if (process.env.DATABASE_URL) {
+        console.log(`DB Host: ${process.env.DATABASE_URL.split('@')[1]?.split('/')[0]}`);
+        console.log(`SSL Mode: ${process.env.DATABASE_URL.includes('sslmode') ? 'Detected in URL' : 'Not in URL'}`);
+    }
     try {
         await db.query(`
             CREATE TABLE IF NOT EXISTS users (
