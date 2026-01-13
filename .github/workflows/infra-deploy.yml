@@ -58,7 +58,8 @@ jobs:
             docker rm demo || true
             docker run -d \
               -p 80:3000 \
-              -e DATABASE_URL=postgresql://postgres:postgres123@${{ steps.tf_outputs.outputs.db_endpoint }}/demo \
+              -e DATABASE_URL=postgresql://postgres:postgres123@${{ steps.tf_outputs.outputs.db_endpoint }}/demo?sslmode=require \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e NODE_ENV=production \
               --name demo demo-app
           EOF
