@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       bucket_suffix:
-        description: 'Suffix for the S3 bucket (e.g. your-name-2026)'
+        description: 'Suffix for the S3 bucket (e.g. pappu-2026)'
         required: true
         default: 'pappu-2026'
+      table_suffix:
+        description: 'Suffix for the DynamoDB table (e.g. demo-app)'
+        required: true
+        default: 'demo-app'
 
 jobs:
   bootstrap:
@@ -26,7 +30,9 @@ jobs:
       - name: Terraform Apply
         run: |
           cd infra/bootstrap
-          terraform apply -auto-approve -var="state_bucket_name=${{ github.event.inputs.bucket_suffix }}-terraform-state"
+          terraform apply -auto-approve \
+            -var="state_bucket_name=${{ github.event.inputs.bucket_suffix }}-terraform-state" \
+            -var="dynamodb_table_name=${{ github.event.inputs.table_suffix }}-terraform-locks"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
