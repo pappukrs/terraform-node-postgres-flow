@@ -7,9 +7,12 @@ jobs:
   terraform:
     name: Terraform Apply
     runs-on: ubuntu-latest
-    outputs:
-      ec2_ip: ${{ steps.output.outputs.ec2_ip }}
-      db_endpoint: ${{ steps.output.outputs.db_endpoint }}
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ap-south-1
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,10 +28,6 @@ jobs:
         run: |
           cd infra
           terraform apply -auto-approve
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ap-south-1
 
       - name: Get Outputs
         id: output
@@ -36,7 +35,3 @@ jobs:
           cd infra
           echo "ec2_ip=$(terraform output -raw ec2_ip)" >> $GITHUB_OUTPUT
           echo "db_endpoint=$(terraform output -raw db_endpoint)" >> $GITHUB_OUTPUT
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ap-south-1
