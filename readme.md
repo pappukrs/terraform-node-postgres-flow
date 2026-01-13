@@ -134,6 +134,21 @@ Go to **GitHub Actions > Infra Destroy > Run workflow** and type `destroy`.
 
 ---
 
+## 🚀 How to Run (Quick Start)
+
+Once the infrastructure is up, your app is automatically deployed on every push to `master`.
+
+1.  **View logs**: `docker logs demo` on the EC2 instance.
+2.  **API Endpoints**:
+    - `GET /`: Health check.
+    - `POST /signup`: Create a user (JSON body: `username`, `password`).
+    - `POST /login`: Get JWT token.
+
+> [!TIP]
+> For a deep dive into how everything works, read the [Deploy Process Guide](file:///media/github/skool.ai/backend/terraform-node-postgres-flow/Deploy_process.md).
+
+---
+
 ## 📖 Glossary of Terms
 
 | Term | Explanation |
@@ -148,10 +163,22 @@ Go to **GitHub Actions > Infra Destroy > Run workflow** and type `destroy`.
 
 ## ❌ Common Troubleshooting
 
+-   **Error: `no pg_hba.conf entry`**: AWS RDS requires SSL. Ensure `DATABASE_URL` has `?sslmode=require`.
+-   **Error: `SELF_SIGNED_CERT_IN_CHAIN`**: RDS uses self-signed certs. Ensure `src/db.js` has `rejectUnauthorized: false` in the SSL config.
 -   **Error: `bucket not found`**: Ensure bootstrap ran and `backend.tf` is updated.
 -   **Error: `Connection timed out`**: Check if Security Groups allow traffic on port 80/5432.
--   **Error: `invalid format` for key**: Ensure the `EC2_KEY` is Base64 encoded without newlines.
+-   **Error: `invalid format` for key**: Ensure the `EC2_KEY_B64` is Base64 encoded without newlines.
 
 ---
+
+## 🛠️ Full Setup Checklist (Summary)
+
+1.  **Fork/Clone** the repo.
+2.  **Add Secrets** to GitHub (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `EC2_KEY_B64`, `JWT_SECRET`).
+3.  **Run Bootstrap** workflow in GitHub Actions.
+4.  **Update `infra/backend.tf`** with the generated bucket name.
+5.  **Run Infra Up** workflow.
+6.  **Push code** to master (triggers `infra-deploy.yml`).
+7.  **Verify app** at `http://<EC2_IP>`.
 
 ✅ **Deployment Complete!** You now have a full-stack automated pipeline.

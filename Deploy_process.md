@@ -415,22 +415,55 @@ postgresql://postgres:postgres123@RDS_ENDPOINT:5432/demo
 
 ---
 
-## 🟢 Step 3 — Pass DB URL to App (ENV)
+### 🟢 Step 3 — Pass DB URL to App (ENV)
 
-Modify GitHub Actions deploy step:
+Modify GitHub Actions deploy step to include `?sslmode=require`:
 
 ```bash
 docker run -d \
-  -e DATABASE_URL=postgresql://... \
+  -e DATABASE_URL=postgresql://postgres:postgres123@${{ steps.tf_outputs.outputs.db_endpoint }}/demo?sslmode=require \
   -p 80:3000 \
   --name demo demo-app
 ```
 
-In Node.js:
+### ⚠️ Crucial: SSL Connection Handling (Problem & Fix)
 
-```js
-import pg from "pg";
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+When connecting to AWS RDS, you will likely hit two major errors. Here is how we fixed them:
+
+#### 1. The "No Encryption" Error
+**Error:** `error: no pg_hba.conf entry for host "xxx", user "postgres", database "demo", no encryption`
+*   **Cause:** AWS RDS requires SSL by default for security.
+*   **Fix:** Add `?sslmode=require` to your `DATABASE_URL` in the GitHub Actions workflow.
+
+#### 2. The "Self-Signed Certificate" Error
+**Error:** `Error: self-signed certificate in certificate chain`
+*   **Cause:** Node.js doesn't recognize the RDS certificate authority by default.
+*   **Fix:** In your `db.js`, you must set `rejectUnauthorized: false`.
+
+#### ✅ Final Best-Practice `src/db.js`
+```javascript
+const { Pool } = require('pg');
+
+let dbUrl = process.env.DATABASE_URL;
+
+const poolConfig = {
+    connectionString: dbUrl,
+};
+
+// AWS RDS requires SSL. We force it if requested via URL or in production.
+if (dbUrl && dbUrl.includes('sslmode')) {
+    // Strip query parameters to prevent conflicts with the explicit ssl object
+    poolConfig.connectionString = dbUrl.split('?')[0];
+    poolConfig.ssl = {
+        rejectUnauthorized: false
+    };
+}
+
+const pool = new Pool(poolConfig);
+
+module.exports = {
+    query: (text, params) => pool.query(text, params),
+};
 ```
 
 ---
@@ -547,3 +580,15 @@ Always snapshot + delete.
 ---
 
 ✅ **If you master this document, you already think like a senior backend engineer.**
+
+---
+
+## 🛠️ Summary: Setting up a NEW project from scratch?
+
+If you are starting a brand new repo with these files, follow this sequence:
+
+1.  **Repo Structure**: Ensure your folders match the `Project Structure` shown above.
+2.  **Environment**: Add your `DATABASE_URL` and `JWT_SECRET` in GitHub Secrets.
+3.  **SSL Handling**: Copy the `db.js` code from the **Crucial: SSL Connection Handling** section above into your project.
+4.  **Workflow**: Use the `deploy.yml` example, but make sure to add `-e DATABASE_URL` and `-e NODE_ENV=production` to the `docker run` command.
+5.  **First Deploy**: Run `terraform apply`, then `git push`.
