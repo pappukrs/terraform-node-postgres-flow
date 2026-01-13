@@ -1,0 +1,33 @@
+name: Infra Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      bucket_suffix:
+        description: 'Suffix for the S3 bucket (e.g. your-name-2026)'
+        required: true
+        default: 'pappu-2026'
+
+jobs:
+  bootstrap:
+    name: Create State Resources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: |
+          cd infra/bootstrap
+          terraform init
+
+      - name: Terraform Apply
+        run: |
+          cd infra/bootstrap
+          terraform apply -auto-approve -var="state_bucket_name=${{ github.event.inputs.bucket_suffix }}-terraform-state"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-south-1

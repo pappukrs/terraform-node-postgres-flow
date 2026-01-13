@@ -1,0 +1,59 @@
+name: Deploy App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: |
+          cd infra
+          terraform init
+
+      - name: Get Outputs
+        id: tf_outputs
+        run: |
+          cd infra
+          echo "ec2_ip=$(terraform output -raw ec2_ip)" >> $GITHUB_OUTPUT
+          echo "db_endpoint=$(terraform output -raw db_endpoint)" >> $GITHUB_OUTPUT
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-south-1
+
+      - name: Decode SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_KEY }}" | base64 -d > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+
+      - name: Build Docker image
+        run: docker build -t demo-app .
+
+      - name: Save image
+        run: docker save demo-app > app.tar
+
+      - name: Copy image to EC2
+        run: |
+          scp -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no app.tar ubuntu@${{ steps.tf_outputs.outputs.ec2_ip }}:/home/ubuntu
+
+      - name: Run container
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ubuntu@${{ steps.tf_outputs.outputs.ec2_ip }} << 'EOF'
+            docker load < app.tar
+            docker stop demo || true
+            docker rm demo || true
+            docker run -d \
+              -p 80:3000 \
+              -e DATABASE_URL=postgresql://postgres:postgres123@${{ steps.tf_outputs.outputs.db_endpoint }}/demo \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              --name demo demo-app
+          EOF
